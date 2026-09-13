@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <dict>
     <key>method</key>
-    <string>development</string>
+    <string>debugging</string>
     <key>signingStyle</key>
     <string>automatic</string>
     <key>teamID</key>
-    <string>Q43BVWJWBK</string>
+    <string>KDX2FPABY9</string>
     <key>stripSwiftSymbols</key>
     <true/>
     <key>compileBitcode</key>
