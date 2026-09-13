@@ -199,12 +199,13 @@ KEY_ALIAS = {
 }
 
 # ---------- 视觉定位提示：只让模型报一个坐标（弱模型友好） ----------
-SYS_LOCATE = """你正在看一张电脑屏幕截图，宽 {W} 高 {H} 像素。
+SYS_LOCATE = """你正在看一张电脑屏幕截图。
 用户想点击界面上名为「{TARGET}」的元素（可能是按钮、输入框、文字标签或图标）。
-请只输出该元素的中心像素坐标，严格用 JSON：
-{{"x": 123, "y": 456}}
+请只输出该元素中心相对于截图的归一化坐标，严格用 JSON：
+{{"nx": 0.42, "ny": 0.55}}
 规则：
-- x 必须在 0 到 {W} 之间，y 必须在 0 到 {H} 之间，不要超出边界。
+- nx 是水平比例(0=最左, 1=最右)，ny 是垂直比例(0=最上, 1=最下)。
+- 坐标必须落在 0.03~0.97 之间，不要贴边，不要返回 (0,0)。
 - 如果屏幕上完全看不到「{TARGET}」，输出 {{"found": false}}。
 - 只输出 JSON，不要任何解释或 markdown。"""
 
@@ -384,9 +385,10 @@ def ocr_locate(cfg, target, region=None):
 
 
 # ---------- 点击前 OCR 吸附：修正视觉模型坐标偏差 ----------
-def _ocr_snap(cfg, x, y, max_dist=55):
+def _ocr_snap(cfg, x, y, max_dist=None):
     """点击前，在当前屏幕 OCR 结果里找离 (x,y) 最近、且足够近的文字/按钮中心，
-    把点击点吸附过去，修正视觉模型 ±几十像素的固有偏差。无合适目标则原样返回。"""
+    把点击点吸附过去，修正视觉模型 ±几十像素的固有偏差。无合适目标则原样返回。
+    max_dist 默认按屏幕短边的 4% 自适应(Retina/外接屏都适用)。"""
     import pyautogui
     raw = str(Path(cfg["shot_dir"]) / "shot_raw.png")
     if not Path(raw).exists():
@@ -395,6 +397,8 @@ def _ocr_snap(cfg, x, y, max_dist=55):
     if not items:
         return x, y
     lw, lh = pyautogui.size()
+    if max_dist is None:
+        max_dist = int(min(lw, lh) * 0.04)
     best, best_d = None, max_dist
     for it in items:
         t, tx, ty, tw, th = it
@@ -408,16 +412,63 @@ def _ocr_snap(cfg, x, y, max_dist=55):
     return best if best else (x, y)
 
 
+# ---------- 点击后验证：防止点错/点空后死循环 ----------
+def _click_verify(cfg, x, y):
+    """点击前后截图对比，判断点击是否生效。
+    以点击点为中心取 ROI(屏幕约35%)，比较前后灰度差异；避免菜单栏时间/全局动画误判。
+    返回 (success_bool, reason_str)。截图失败时不影响主流程，返回未验证。"""
+    from PIL import Image
+    import pyautogui
+    raw = str(Path(cfg["shot_dir"]) / "shot_raw.png")
+    before = str(Path(cfg["shot_dir"]) / "shot_before_click.png")
+    Path(cfg["shot_dir"]).mkdir(parents=True, exist_ok=True)
+    try:
+        if Path(raw).exists():
+            shutil.copy2(raw, before)
+        else:
+            take_screenshot(cfg)
+            shutil.copy2(raw, before)
+        # 给 UI 一点反应时间再截第二次
+        time.sleep(0.7)
+        take_screenshot(cfg)
+    except Exception as e:
+        return True, f"验证未运行({e})"
+    try:
+        lw, lh = pyautogui.size()
+        # 把物理像素截图缩放到逻辑分辨率，便于用 pyautogui 坐标做 ROI
+        im1 = Image.open(before).convert("L").resize((lw, lh), Image.BILINEAR)
+        im2 = Image.open(raw).convert("L").resize((lw, lh), Image.BILINEAR)
+        roi_w = max(80, int(lw * 0.35))
+        roi_h = max(60, int(lh * 0.35))
+        left = max(0, x - roi_w // 2)
+        top = max(0, y - roi_h // 2)
+        right = min(lw, left + roi_w)
+        bottom = min(lh, top + roi_h)
+        r1 = im1.crop((left, top, right, bottom))
+        r2 = im2.crop((left, top, right, bottom))
+        diff = sum(abs(a - b) for a, b in zip(r1.tobytes(), r2.tobytes()))
+        if diff > 4000:
+            return True, f"ROI差异{diff}"
+        # ROI 无明显差异时，再看全局可点击区域文字是否有变化(排除菜单栏/程序坞)
+        t1 = [it[0] for it in (ocr_image(before) or []) if 0.06 < it[2] < 0.97]
+        t2 = [it[0] for it in (ocr_image(raw) or []) if 0.06 < it[2] < 0.97]
+        if t1 != t2:
+            return True, "OCR变化"
+        return False, f"ROI无变化({diff})"
+    except Exception as e:
+        return True, f"验证异常({e})"
+
+
 # ---------- 视觉定位：报一个坐标 ----------
 def ask_locate(cfg, target, shot_path, w, h):
-    """问视觉模型：target 元素在截图里的中心坐标。成功返回 (x,y)，看不到返回 None。"""
+    """问视觉模型：target 元素在截图里的中心坐标。成功返回 (x,y)（小图像素），看不到返回 None。"""
     try:
         img_b64 = base64.b64encode(Path(shot_path).read_bytes()).decode("utf-8")
     except Exception as e:
         print(f"    ⚠️ 读截图失败: {e}")
         return None
     messages = [
-        {"role": "system", "content": SYS_LOCATE.format(W=w, H=h, TARGET=target)},
+        {"role": "system", "content": SYS_LOCATE.format(TARGET=target)},
         {"role": "user", "content": f"请返回「{target}」的中心坐标。", "images": [img_b64]},
     ]
     content = _vision_chat(cfg, messages)
@@ -432,6 +483,14 @@ def ask_locate(cfg, target, shot_path, w, h):
     except Exception:
         return None
     if obj.get("found") is False:
+        return None
+    # 优先解析归一化坐标(0~1)，再兼容旧式像素坐标
+    nx, ny = obj.get("nx"), obj.get("ny")
+    if nx is not None and ny is not None:
+        fnx, fny = float(nx), float(ny)
+        # 边缘保护：贴边坐标视为模型没把握，直接丢弃
+        if 0.03 < fnx < 0.97 and 0.03 < fny < 0.97:
+            return (int(fnx * w), int(fny * h))
         return None
     x, y = int(float(obj.get("x", -1))), int(float(obj.get("y", -1)))
     if 0 <= x <= w and 0 <= y <= h and not (x < 5 and y < 5):
@@ -532,7 +591,22 @@ def execute(cfg, act, scale):
         x, y = _ocr_snap(cfg, x, y)
         pyautogui.moveTo(x, y, duration=0.04)
         pyautogui.click(x, y)
-        return f"点击 ({x},{y})"
+        # 点击后验证：若屏幕完全没变化，尝试 OCR 二次定位（有目标名时）
+        ok, reason = _click_verify(cfg, x, y)
+        if not ok:
+            target = act.get("target") or act.get("text")
+            if target:
+                print(f"    ⚠️ 点击后屏幕无变化，尝试 OCR 二次定位「{target}」…")
+                loc = ocr_locate(cfg, target)
+                if loc:
+                    x2, y2, t = loc
+                    pyautogui.click(x2, y2)
+                    ok2, reason2 = _click_verify(cfg, x2, y2)
+                    if ok2:
+                        return f"点击 ({x2},{y2}) [OCR二次定位]"
+                    return f"点击 ({x2},{y2}) [OCR二次定位，仍{reason2}]"
+            print(f"    ⚠️ 点击 ({x},{y}) 后屏幕无变化({reason})，可能未命中")
+        return f"点击 ({x},{y})" + (f" [{reason}]" if ok else " [可能未命中]")
     if a == "type":
         text = act.get("text", "")
         if any(ord(c) > 127 for c in text):
@@ -911,6 +985,7 @@ STEP_RE = re.compile(
     r"(?P<open>打开(?P<app>[^\s，,。；;]+?)(?=给|并|然后|再|点|搜|发|输入|按|快捷|，|,|。|；|;|\s|$))"
     r"|(?P<press>(?:按下|按一下|按键|按|快捷键|快捷|组合键)\s*(?P<key>" + _HOTKEY_PAT + r"))"
     r"|(?P<search>(?:搜索|搜一下|搜|查找|查询)\s*(?P<query>[^\s，,。；;]+))"
+    r"|(?P<win>(?:最小化|关闭|最大化|全屏)(?:当前)?(?:窗口)?)"
     r"|(?P<click>(?:点击|点)(?:一下)?\s*(?P<target>[^\s，,。；;]+))"
     r"|(?P<type>输入\s*(?P<text>[^\s，,。；;]+))"
 )
@@ -952,6 +1027,14 @@ def parse_steps(instruction):
                          else {"action": "hotkey", "keys": keys})
         elif m.group("search"):
             steps.append({"action": "search", "query": m.group("query").strip()})
+        elif m.group("win"):
+            op = m.group("win")
+            if "最小化" in op:
+                steps.append({"action": "hotkey", "keys": ["command", "m"]})
+            elif "关闭" in op:
+                steps.append({"action": "hotkey", "keys": ["command", "w"]})
+            elif "最大化" in op or "全屏" in op:
+                steps.append({"action": "hotkey", "keys": ["command", "control", "f"]})
         elif m.group("click"):
             steps.append({"action": "click", "target": m.group("target").strip()})
         elif m.group("type"):
