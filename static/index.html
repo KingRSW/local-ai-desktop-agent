@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>桌面员工 · 你说话，电脑自己干</title>
+<style>
+  :root{
+    --glass: rgba(255,255,255,0.55);
+    --glass-strong: rgba(255,255,255,0.75);
+    --ink: #1d1b3a;
+    --ink-soft: #5b5878;
+    --accent: #6c5ce7;
+    --accent2: #00b8d9;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    color:var(--ink);
+    min-height:100vh;
+    background:
+      radial-gradient(1200px 600px at 15% 10%, #c9b8ff 0%, transparent 55%),
+      radial-gradient(1000px 700px at 90% 20%, #b6f0ff 0%, transparent 50%),
+      radial-gradient(900px 800px at 50% 100%, #ffd6f0 0%, transparent 55%),
+      linear-gradient(180deg,#f6f4ff 0%,#eef6ff 100%);
+    background-attachment:fixed;
+    overflow-x:hidden;
+  }
+  .wrap{max-width:980px;margin:0 auto;padding:48px 22px 80px;}
+  .glass{
+    background:var(--glass);
+    backdrop-filter:blur(22px) saturate(160%);
+    -webkit-backdrop-filter:blur(22px) saturate(160%);
+    border:1px solid rgba(255,255,255,0.6);
+    border-radius:26px;
+    box-shadow:0 10px 40px rgba(108,92,231,0.12);
+  }
+  header.nav{display:flex;justify-content:space-between;align-items:center;padding:14px 22px;margin-bottom:56px;}
+  .logo{font-weight:800;font-size:20px;letter-spacing:.5px;display:flex;align-items:center;gap:10px;}
+  .dot{width:12px;height:12px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 0 14px var(--accent);}
+  .nav a{color:var(--ink-soft);text-decoration:none;font-size:14px;margin-left:18px;}
+  .hero{padding:54px 46px;text-align:center;margin-bottom:28px;}
+  .badge{display:inline-block;padding:7px 16px;border-radius:999px;background:var(--glass-strong);font-size:13px;color:var(--accent);font-weight:600;margin-bottom:22px;letter-spacing:.4px;}
+  h1{font-size:46px;line-height:1.15;font-weight:800;margin-bottom:18px;}
+  h1 .hl{background:linear-gradient(120deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .sub{font-size:18px;color:var(--ink-soft);max-width:620px;margin:0 auto 30px;line-height:1.7;}
+  .cta{display:inline-flex;gap:12px;flex-wrap:wrap;justify-content:center;}
+  .btn{padding:14px 30px;border-radius:16px;border:none;font-size:16px;font-weight:700;cursor:pointer;transition:.2s;}
+  .btn-primary{background:linear-gradient(120deg,var(--accent),var(--accent2));color:#fff;box-shadow:0 8px 24px rgba(108,92,231,.35);}
+  .btn-primary:hover{transform:translateY(-2px);}
+  .btn-ghost{background:var(--glass-strong);color:var(--ink);}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:30px 0;}
+  .card{padding:26px 22px;}
+  .card .ic{font-size:30px;margin-bottom:12px;}
+  .card h3{font-size:18px;margin-bottom:8px;}
+  .card p{font-size:14px;color:var(--ink-soft);line-height:1.6;}
+  .demo{padding:34px 42px;margin-top:30px;}
+  .demo h2{font-size:24px;margin-bottom:14px;}
+  .cmd{display:flex;gap:10px;align-items:center;background:#1d1b3a;color:#e8e6ff;padding:14px 18px;border-radius:14px;font-family:ui-monospace,Menlo,monospace;font-size:14px;margin:14px 0;}
+  .cmd .p{color:#7cf0c8;}
+  .waitlist{padding:40px 42px;text-align:center;margin-top:30px;}
+  .waitlist h2{font-size:26px;margin-bottom:10px;}
+  .waitlist p{color:var(--ink-soft);margin-bottom:20px;}
+  .field{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+  input[type=email]{padding:13px 18px;border-radius:14px;border:1px solid rgba(108,92,231,.3);width:280px;font-size:15px;outline:none;background:var(--glass-strong);}
+  .ok{color:var(--accent);font-weight:700;margin-top:14px;height:20px;}
+  footer{text-align:center;color:var(--ink-soft);font-size:13px;margin-top:46px;}
+  @media(max-width:720px){.grid{grid-template-columns:1fr;}.hero{padding:38px 22px;}h1{font-size:34px;}.demo,.waitlist{padding:30px 22px;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="nav glass">
+    <div class="logo"><span class="dot"></span>桌面员工</div>
+    <nav><a href="#wait">抢先体验</a></nav>
+  </header>
+
+  <section class="hero glass">
+    <span class="badge">本地运行 · 隐私零上传 · 中文母语</span>
+    <h1>你说话，<span class="hl">电脑自己干</span></h1>
+    <p class="sub">用一句中文下达指令，你自己的本地大模型听懂后，直接操控鼠标键盘把活干完。
+      不上云、不泄露、Mac 和 Windows 都能跑——真正的"数字员工"，不是聊天机器人。</p>
+    <div class="cta">
+      <button class="btn btn-primary" onclick="document.getElementById('wait').scrollIntoView({behavior:'smooth'})">抢先体验</button>
+    </div>
+  </section>
+
+  <div class="grid">
+    <div class="card glass"><div class="ic">🔒</div><h3>本地运行，隐私零上传</h3><p>模型跑在你自己的电脑上，资料从不出门。企业敏感数据、个人账号都安全。</p></div>
+    <div class="card glass"><div class="ic">🗣️</div><h3>说中文就能用</h3><p>不用学流程、不用拖节点。像吩咐同事一样说人话，它自己拆步骤去执行。</p></div>
+    <div class="card glass"><div class="ic">💻</div><h3>跨平台 mac + Win</h3><p>一套引擎两端通用，界面是液态玻璃风，好看又好用，小白也能上手。</p></div>
+  </div>
+
+  <section class="demo glass">
+    <h2>它能干点啥（真实可跑）</h2>
+    <div class="cmd"><span class="p">你 ▸</span> 打开浏览器，搜一下今天深圳天气，截图发我</div>
+    <div class="cmd"><span class="p">员工 ▸</span> ① 启动 Chrome → ② 输入网址 → ③ 键入"深圳天气" → ④ 截图保存</div>
+    <div class="cmd"><span class="p">你 ▸</span> 把这周的销售表做成柱状图，存到桌面</div>
+    <div class="cmd"><span class="p">员工 ▸</span> ① 打开表格 → ② 读数据 → ③ 生成图表 → ④ 保存到桌面</div>
+    <p style="color:var(--ink-soft);font-size:14px;">以上由本地引擎原型驱动，无需联网、无需人工点击。</p>
+  </section>
+
+  <section id="wait" class="waitlist glass">
+    <h2>抢先体验 · 内测名额有限</h2>
+    <p>留下邮箱，内测开放时第一时间通知你，并送「10 个开箱即用指令模板」。</p>
+    <div class="field">
+      <input type="email" id="email" placeholder="你的邮箱" />
+      <button class="btn btn-primary" onclick="join()">加入等候名单</button>
+    </div>
+    <div class="ok" id="ok"></div>
+  </section>
+
+  <footer>桌面员工 · 本地 AI 桌面代理 · 蓝海项目 MVP Demo</footer>
+</div>
+
+<script>
+  // ===== 邮箱收集：接外部服务，无需后端 =====
+  // 方式一 Formspree（推荐，免费）：去 https://formspree.io 建个表单，
+  //   把下面地址里的 YOUR_FORM_ID 换成你的表单 ID，形如 https://formspree.io/f/abcdwxyz
+  // 方式二 腾讯问卷 / 飞书表单：把地址换成它们提供的「提交接口」即可（见 deploy-guide.md）
+  var FORM_ENDPOINT = "https://formspree.io/f/YOUR_FORM_ID";
+
+  function join(){
+    var e=document.getElementById('email').value.trim();
+    var ok=document.getElementById('ok');
+    if(!e||e.indexOf('@')<0){ok.textContent='请填一个有效邮箱 🙏';return;}
+    if(FORM_ENDPOINT.indexOf('YOUR_FORM_ID')>=0){ok.textContent='请先在代码中填入你的表单地址 🙏';return;}
+    ok.textContent='提交中…';
+    fetch(FORM_ENDPOINT,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify({email:e, _subject:'桌面员工 - 新内测订阅'})
+    })
+    .then(function(r){return r.json().catch(function(){return {};});})
+    .then(function(){
+      ok.textContent='已加入 ✅ 内测开放会邮件通知你';
+      document.getElementById('email').value='';
+    })
+    .catch(function(){ok.textContent='提交失败，请稍后再试';});
+  }
+</script>
+</body>
+</html>

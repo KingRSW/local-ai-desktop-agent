@@ -1,0 +1,30 @@
+# ---- 打包 / 构建产物 ----
+dist/
+dmg_root/
+build/
+*.dmg
+*.app
+
+# ---- Python ----
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# ---- OCR 编译二进制(跨平台源码 ocr.swift 已保留, 见 README 编译) ----
+agent/ocr
+
+# ---- 本地配置(含本机路径, 勿提交; 用 config.example.json 作模板) ----
+agent/config.json
+
+# ---- 运行产物 / 隐私 ----
+agent/screenshots/
+remote_info.txt
+*.log
+
+# ---- 系统 / 工具 ----
+.DS_Store
+.workbuddy/
+
+# ---- 演示截图(非必要二进制) ----
+ios_app/demo_screenshot.png

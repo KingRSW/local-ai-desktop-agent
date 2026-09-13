@@ -1,0 +1,9 @@
+{
+  "ollama_host": "http://localhost:11434",
+  "model": "gemma4",
+  "safe_mode": true,
+  "step_delay": 0.8,
+  "screenshot_dir": "screenshots",
+  "vision_backend": "pyautogui",
+  "openclaw_cmd": "openclaw"
+}

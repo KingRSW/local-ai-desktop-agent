@@ -1,0 +1,32 @@
+[
+  {
+    "id": "search_shot",
+    "title": "百度搜词并截图",
+    "instruction": "打开浏览器搜一下 深圳天气 并截图",
+    "desc": "搜索结果页自动截图留存"
+  },
+  {
+    "id": "clean_desktop",
+    "title": "整理桌面截图",
+    "instruction": "把桌面上所有截图文件移动到 桌面/截图归档 文件夹",
+    "desc": "一键归拢零散截图"
+  },
+  {
+    "id": "rename_dl",
+    "title": "批量重命名下载图片",
+    "instruction": "把下载文件夹里所有 png 图片按 图001 图002 重命名",
+    "desc": "下载图批量规范命名"
+  },
+  {
+    "id": "open_wechat",
+    "title": "打开微信发消息",
+    "instruction": "打开微信 并点击 文件传输助手",
+    "desc": "（需视觉后端）定位并点开会话"
+  },
+  {
+    "id": "max_browser",
+    "title": "浏览器全屏看新闻",
+    "instruction": "打开浏览器搜 今日新闻 然后把窗口最大化",
+    "desc": "边看边记录"
+  }
+]

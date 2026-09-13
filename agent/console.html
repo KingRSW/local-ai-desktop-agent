@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>桌面员工 · 手机遥控</title>
+<style>
+  :root{
+    --bg:#0a0b10; --bg2:#11131b;
+    --glass:rgba(255,255,255,.07); --glass-strong:rgba(255,255,255,.12);
+    --stroke:rgba(255,255,255,.14);
+    --text:#eef1f7; --text-2:#aeb6c6; --text-3:#727c91;
+    --accent:#0a84ff; --accent-2:#5e5ce6; --green:#30d158; --red:#ff453a; --amber:#ff9f0a;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font:14px/1.5 -apple-system,"SF Pro Text","PingFang SC",system-ui,sans-serif;
+    color:var(--text);background:var(--bg);overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(120% 80% at 50% -10%,rgba(94,92,230,.30),transparent 60%),
+                     radial-gradient(90% 60% at 100% 110%,rgba(10,132,255,.22),transparent 55%);
+    background-attachment:fixed;
+  }
+  .wrap{height:100%;display:flex;flex-direction:column;padding:10px;gap:10px;
+    padding-top:max(10px,env(safe-area-inset-top));padding-bottom:max(10px,env(safe-area-inset-bottom))}
+  /* 顶部品牌 */
+  .top{display:flex;align-items:center;gap:10px;padding:8px 12px}
+  .logo{width:32px;height:32px;border-radius:10px;flex:0 0 auto;
+    background:linear-gradient(140deg,var(--accent-2),var(--accent));
+    display:grid;place-items:center;box-shadow:0 6px 16px -4px rgba(10,132,255,.6)}
+  .logo svg{width:18px;height:18px;fill:#fff}
+  .brand{font-weight:700;font-size:16px;letter-spacing:.3px}
+  .brand small{display:block;font-weight:500;font-size:11px;color:var(--text-3)}
+  .state{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--text-3)}
+  .dot.ok{background:var(--green);box-shadow:0 0 8px var(--green)}
+  .dot.busy{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+  /* 玻璃卡 */
+  .card{background:var(--glass);border:1px solid var(--stroke);border-radius:16px;
+    backdrop-filter:blur(20px) saturate(160%);-webkit-backdrop-filter:blur(20px) saturate(160%);
+    box-shadow:0 8px 30px rgba(0,0,0,.35)}
+  /* 截图区 */
+  .screen{flex:1 1 auto;min-height:0;position:relative;overflow:hidden;display:grid;place-items:center}
+  .screen img{width:100%;height:100%;object-fit:contain;border-radius:16px;display:block}
+  .screen .ph{color:var(--text-3);font-size:13px;text-align:center;padding:20px}
+  .sbadge{position:absolute;left:10px;bottom:10px;font-size:11px;color:var(--text-2);
+    background:rgba(0,0,0,.45);padding:4px 9px;border-radius:20px;backdrop-filter:blur(8px)}
+  /* 指令输入 */
+  .cmd{padding:10px;display:flex;flex-direction:column;gap:8px}
+  .row{display:flex;gap:8px;align-items:center}
+  textarea{flex:1;resize:none;height:46px;max-height:120px;border-radius:13px;
+    border:1px solid var(--stroke);background:rgba(0,0,0,.25);color:var(--text);
+    padding:11px 13px;font:14px/1.4 inherit;outline:none}
+  textarea:focus{border-color:var(--accent)}
+  .send{flex:0 0 auto;height:46px;padding:0 18px;border:0;border-radius:13px;font-weight:600;
+    color:#fff;background:linear-gradient(140deg,var(--accent-2),var(--accent));
+    box-shadow:0 6px 18px -6px rgba(10,132,255,.7)}
+  .send:disabled{opacity:.5}
+  .stop{flex:0 0 auto;height:46px;padding:0 16px;border:0;border-radius:13px;font-weight:600;
+    color:#fff;background:linear-gradient(140deg,var(--red),#ff6b6b);
+    box-shadow:0 6px 18px -6px rgba(255,69,58,.6)}
+  .chips{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch}
+  .chip{flex:0 0 auto;font-size:12px;color:var(--text-2);background:var(--glass-strong);
+    border:1px solid var(--stroke);padding:6px 11px;border-radius:20px;white-space:nowrap}
+  .chip:active{background:var(--accent)}
+  .opts{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-2)}
+  .switch{display:flex;align-items:center;gap:6px}
+  .switch i{width:34px;height:20px;border-radius:20px;background:var(--glass-strong);
+    border:1px solid var(--stroke);position:relative;transition:.2s;flex:0 0 auto}
+  .switch i::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+    background:#fff;transition:.2s}
+  .switch.on i{background:var(--accent)}
+  .switch.on i::after{left:16px}
+  .eye{flex:0 0 auto;width:38px;height:38px;border-radius:11px;border:1px solid var(--stroke);
+    background:var(--glass-strong);color:var(--text);display:grid;place-items:center;font-size:16px}
+  /* 日志抽屉 */
+  .log{height:30%;min-height:120px;display:flex;flex-direction:column;overflow:hidden}
+  .log h4{font-size:12px;color:var(--text-3);font-weight:600;padding:9px 12px 4px;display:flex;align-items:center}
+  .log h4 .clear{margin-left:auto;color:var(--accent);font-weight:500}
+  .logbody{flex:1;overflow-y:auto;padding:0 12px 10px;font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text-2)}
+  .logbody div{padding:1px 0;white-space:pre-wrap;word-break:break-word}
+  .logbody .t{color:var(--text-3);margin-right:6px}
+  /* 设置弹层 */
+  .mask{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;place-items:center;z-index:20;padding:20px}
+  .mask.show{display:grid}
+  .panel{width:100%;max-width:340px;padding:18px;display:flex;flex-direction:column;gap:12px}
+  .panel h3{font-size:16px}
+  .panel p{font-size:12px;color:var(--text-3)}
+  .panel input{border-radius:11px;border:1px solid var(--stroke);background:rgba(0,0,0,.3);
+    color:var(--text);padding:11px 12px;font:14px inherit;outline:none}
+  .panel button{height:44px;border:0;border-radius:12px;font-weight:600;color:#fff;
+    background:linear-gradient(140deg,var(--accent-2),var(--accent))}
+  .gear{margin-left:8px;font-size:16px;color:var(--text-3)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="logo"><svg viewBox="0 0 24 24"><path d="M12 2 3 6.5v6c0 5 3.8 8.9 9 9.5 5.2-.6 9-4.5 9-9.5v-6L12 2Zm0 4.2 5 2.5v3.8c0 3-1.9 5.4-5 6.2-3.1-.8-5-3.2-5-6.2V8.7l5-2.5Z"/></svg></div>
+    <div class="brand">桌面员工<small>手机遥控 · 本地执行</small></div>
+    <div class="state"><span class="dot" id="dot"></span><span id="stateText">连接中…</span></div>
+    <span class="gear" id="gear">⚙</span>
+  </div>
+
+  <div class="card screen">
+    <div class="ph" id="ph">点「看屏幕」或发条指令，这里会显示 Mac 实时画面</div>
+    <img id="shot" style="display:none" alt="screen">
+    <div class="sbadge" id="sbadge" style="display:none">实时画面</div>
+  </div>
+
+  <div class="card cmd">
+    <div class="chips" id="chips">
+      <span class="chip" data-c="打开微信">打开微信</span>
+      <span class="chip" data-c="给文件传输助手发消息 在吗">发消息给文件传输助手</span>
+      <span class="chip" data-c="打开浏览器 搜索 今天天气">搜索天气</span>
+      <span class="chip" data-c="截图看看屏幕">截图看看</span>
+    </div>
+    <div class="row">
+      <textarea id="cmd" placeholder="用中文告诉它要做什么，例如：打开备忘录 输入 记得买牛奶"></textarea>
+      <button class="send" id="send">发送</button>
+      <button class="stop" id="stopBtn" style="display:none">停止</button>
+    </div>
+    <div class="row">
+      <div class="opts">
+        <span class="switch" id="safe"><i></i><span>安全模式(只看不点)</span></span>
+      </div>
+      <button class="eye" id="eye" title="看屏幕">👁</button>
+    </div>
+  </div>
+
+  <div class="card log">
+    <h4>执行日志 <span class="clear" id="clear">清空</span></h4>
+    <div class="logbody" id="logbody"></div>
+  </div>
+</div>
+
+<div class="mask" id="mask">
+  <div class="card panel">
+    <h3>连接设置</h3>
+    <p>若 Mac 端启动时显示了「连接令牌」，填到这里。留空表示 Mac 端未设令牌。</p>
+    <input id="tokenInput" placeholder="连接令牌(可选)" autocomplete="off">
+    <button id="saveToken">保存</button>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let token = localStorage.getItem("da_token") || "";
+let running = false, lastLogLen = 0;
+
+// 设置弹层
+$("#gear").onclick = () => { $("#tokenInput").value = token; $("#mask").classList.add("show"); };
+$("#mask").onclick = e => { if (e.target === $("#mask")) $("#mask").classList.remove("show"); };
+$("#saveToken").onclick = () => {
+  token = $("#tokenInput").value.trim();
+  localStorage.setItem("da_token", token);
+  $("#mask").classList.remove("show");
+  ping();
+};
+
+// 安全模式
+$("#safe").onclick = () => $("#safe").classList.toggle("on");
+
+// 快捷指令
+$("#chips").onclick = e => {
+  const c = e.target.closest(".chip");
+  if (c) $("#cmd").value = c.dataset.c;
+};
+
+$("#clear").onclick = () => { $("#logbody").innerHTML = ""; lastLogLen = 0; };
+$("#eye").onclick = () => fetch("/api/snap", post({})).then(refreshShot);
+
+function post(obj){
+  const b = Object.assign({}, obj);
+  if (token) b.token = token;
+  return { method:"POST", headers:{"Content-Type":"application/json"},
+           body: JSON.stringify(b) };
+}
+
+async function ping(){
+  try{
+    const r = await fetch("/api/health");
+    const j = await r.json();
+    $("#dot").className = "dot ok";
+    $("#stateText").textContent = j.running ? "执行中" : "已连接";
+    if (j.token_required && !token){
+      $("#stateText").textContent = "需填令牌";
+      $("#gear").style.color = "var(--amber)";
+    }
+  }catch(e){
+    $("#dot").className = "dot";
+    $("#stateText").textContent = "未连接";
+  }
+}
+
+async function refreshShot(){
+  const r = await fetch("/api/shot?t=" + Date.now()).catch(()=>null);
+  if (r && r.ok){
+    const url = URL.createObjectURL(await r.blob());
+    const img = $("#shot");
+    img.onload = () => URL.revokeObjectURL(url);
+    img.src = url;
+    img.style.display = "block";
+    $("#ph").style.display = "none";
+    $("#sbadge").style.display = "block";
+  }
+}
+
+async function pollStatus(){
+  try{
+    const r = await fetch("/api/status");
+    const j = await r.json();
+    running = j.running;
+    $("#dot").className = "dot " + (running ? "busy" : "ok");
+    $("#stateText").textContent = running ? "执行中…" : "已连接";
+    const body = $("#logbody");
+    const logs = j.log || [];
+    if (logs.length > lastLogLen){
+      for (let i = lastLogLen; i < logs.length; i++){
+        const l = logs[i];
+        const d = document.createElement("div");
+        d.innerHTML = '<span class="t">'+l.t+'</span>'+escapeHtml(l.msg);
+        body.appendChild(d);
+      }
+      lastLogLen = logs.length;
+      body.scrollTop = body.scrollHeight;
+    }
+    $("#send").disabled = running;
+    $("#send").textContent = running ? "执行中…" : "发送";
+    $("#stopBtn").style.display = running ? "block" : "none";
+    if (running) refreshShot();
+  }catch(e){}
+}
+
+function escapeHtml(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+
+async function send(){
+  const cmd = $("#cmd").value.trim();
+  if (!cmd || running) return;
+  $("#logbody").innerHTML = ""; lastLogLen = 0;
+  const no_exec = $("#safe").classList.contains("on");
+  const r = await fetch("/api/run", post({cmd, no_exec})).catch(()=>null);
+  if (!r || !r.ok){
+    const e = await r.json().catch(()=>({}));
+    const d = document.createElement("div");
+    d.style.color = "var(--red)";
+    d.textContent = "⛔ " + (e.error || "连接失败，确认手机和 Mac 在同一 WiFi");
+    $("#logbody").appendChild(d);
+    return;
+  }
+  $("#cmd").value = "";
+}
+
+async function stopTask(){
+  await fetch("/api/stop", post({})).catch(()=>null);
+  pollStatus();
+}
+
+$("#send").onclick = send;
+$("#stopBtn").onclick = stopTask;
+$("#cmd").addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey){ e.preventDefault(); send(); }
+});
+
+ping();
+setInterval(ping, 8000);
+setInterval(pollStatus, 1500);
+setInterval(() => { if (running) refreshShot(); }, 2500);
+</script>
+</body>
+</html>
