@@ -3,17 +3,19 @@ import UserNotifications
 import EventKit
 
 struct ContentView: View {
-    @StateObject private var assistant = Assistant()
+    @StateObject private var assistant = Assistant.shared
     @State private var input = ""
     @State private var showManual = false
     @State private var showModels = false
+    @State private var showSettings = false
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if !assistant.modelAvailable {
+                if assistant.backend != .onDevice {
                     HStack(spacing: 8) {
-                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                        Image(systemName: assistant.backend == .ollama ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                            .foregroundStyle(assistant.backend == .ollama ? .green : .orange)
                         Text(assistant.statusText)
                             .font(.caption).foregroundStyle(.secondary)
                         Spacer()
@@ -45,14 +47,18 @@ struct ContentView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button { showManual = true } label: { Image(systemName: "plus.circle") }
+                    Button { showSettings = true } label: { Image(systemName: "gearshape") }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showModels = true } label: { Image(systemName: "cpu") }
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showManual = true } label: { Image(systemName: "plus.circle") }
+                }
             }
             .sheet(isPresented: $showManual) { ManualAddView() }
             .sheet(isPresented: $showModels) { ModelsView() }
+            .sheet(isPresented: $showSettings) { SettingsView() }
         }
     }
 
@@ -146,7 +152,7 @@ struct ManualAddView: View {
     func setAlarm() {
         let center = UNUserNotificationCenter.current()
         Task {
-            _ = try await center.requestAuthorization(options: [.alert, .sound, .badge])
+            _ = try? await center.requestAuthorization(options: [.alert, .sound, .badge])
             let content = UNMutableNotificationContent()
             content.title = "⏰ iPhoneClaw 闹钟"
             content.body = title
@@ -183,28 +189,93 @@ struct ManualAddView: View {
     }
 }
 
-// MARK: - 模型页
+// MARK: - 设置（Mac Ollama）
+struct SettingsView: View {
+    @Environment(\.dismiss) var dismiss
+    @ObservedObject private var settings = ClawSettings.shared
+    @State private var testResult = ""
+    @State private var testing = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Mac Ollama（局域网 / 云端 AI）") {
+                    Toggle("使用 Mac Ollama", isOn: $settings.useOllama)
+                    TextField("服务器地址", text: $settings.baseURL)
+                        .textInputAutocapitalization(.never).autocorrectionDisabled()
+                        .keyboardType(.URL)
+                    TextField("模型名", text: $settings.modelName)
+                        .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    Button { Task { await test() } } label: {
+                        if testing { ProgressView() } else { Text("测试连接") }
+                    }
+                    if !testResult.isEmpty {
+                        Text(testResult).font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
+                Section("说明") {
+                    Text("曼德尔单元不支持 Apple 端侧模型。开启后用 Mac 上已运行的 Ollama，即可用 AI 设闹钟/日历。模型跑在 Mac，手机不下载权重，任何 iPhone 都能用。").font(.footnote).foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("设置")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("完成") { Assistant.shared.refresh(); dismiss() }
+                }
+            }
+        }
+    }
+
+    func test() async {
+        testing = true; defer { testing = false }
+        let base = settings.baseURL.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: ["/"])
+        guard let url = URL(string: base + "/api/tags") else { testResult = "地址无效"; return }
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let models = json["models"] as? [[String: Any]] {
+                let names = models.compactMap { $0["name"] as? String }
+                testResult = "✅ 已连，可用模型：\(names.joined(separator: ", "))"
+            } else { testResult = "⚠️ 有响应但格式异常" }
+        } catch { testResult = "❌ 连接失败：\(error.localizedDescription)" }
+    }
+}
+
+// MARK: - 模型页（Ollama + 可下载 GGUF）
 struct ModelsView: View {
     @Environment(\.dismiss) var dismiss
+    @State private var downloading = Set<String>()
+    @State private var done = Set<String>()
+
     var body: some View {
         NavigationStack {
             List {
-                Section("当前可用") {
-                    HStack(spacing: 12) {
-                        Image(systemName: "checkmark.seal.fill").foregroundStyle(.green).font(.title2)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Apple 端侧模型").font(.headline)
-                            Text("Foundation Models · 完全离线 · 隐私").font(.caption).foregroundStyle(.secondary)
-                        }
+                Section("当前 AI 引擎") {
+                    LabeledContent("后端", value: Assistant.shared.backend.rawValue)
+                    if Assistant.shared.backend == .ollama {
+                        LabeledContent("模型", value: ClawSettings.shared.modelName)
                     }
                 }
-                Section("即将推出（可下载）") {
-                    LabeledContent("Qwen 小模型", value: "敬请期待")
-                    LabeledContent("下载模型管理", value: "规划中")
+                Section("Mac Ollama（局域网 / 云端）") {
+                    Text("在「设置」里填 Mac 地址即可。模型跑在 Mac，手机不下载权重，任何 iPhone 都能用。").font(.footnote).foregroundStyle(.secondary)
                 }
-                Section {
-                    Text("iPhoneClaw 默认用 iPhone 自带 AI 芯片在本地推理，不上传任何数据。后续版本会加入可下载的额外模型。")
-                        .font(.caption).foregroundStyle(.secondary)
+                Section("可下载模型（本地离线 · 推理引擎接入中）") {
+                    ForEach(LocalModel.catalog) { m in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(m.name).font(.headline)
+                                Text(m.desc).font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if done.contains(m.id) {
+                                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                            } else if downloading.contains(m.id) {
+                                ProgressView()
+                            } else {
+                                Button("下载") { download(m) }.buttonStyle(.bordered)
+                            }
+                        }
+                    }
                 }
             }
             .navigationTitle("模型")
@@ -215,4 +286,38 @@ struct ModelsView: View {
             }
         }
     }
+
+    func download(_ m: LocalModel) {
+        downloading.insert(m.id)
+        Task {
+            do {
+                let url = URL(string: m.url)!
+                let (tmp, _) = try await URLSession.shared.download(from: url)
+                let dest = LocalModel.dir.appendingPathComponent(m.file)
+                try? FileManager.default.removeItem(at: dest)
+                try FileManager.default.moveItem(at: tmp, to: dest)
+                done.insert(m.id)
+            } catch {
+                // 下载失败静默（可重试）
+            }
+            downloading.remove(m.id)
+        }
+    }
+}
+
+struct LocalModel: Identifiable {
+    let id: String; let name: String; let desc: String; let url: String; let file: String
+    static let dir: URL = {
+        let d = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("models")
+        try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
+        return d
+    }()
+    static let catalog = [
+        LocalModel(id: "qwen2.5-3b", name: "Qwen2.5-3B-Instruct (GGUF Q4)", desc: "约2GB，本地离线推理（引擎接入中）",
+                   url: "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf",
+                   file: "qwen2.5-3b-q4.gguf"),
+        LocalModel(id: "qwen2.5-1.5b", name: "Qwen2.5-1.5B-Instruct (GGUF Q4)", desc: "约1GB，更快（引擎接入中）",
+                   url: "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
+                   file: "qwen2.5-1.5b-q4.gguf")
+    ]
 }

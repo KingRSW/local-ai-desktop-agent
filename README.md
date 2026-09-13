@@ -46,15 +46,25 @@ http://<你的 Mac 局域网IP>:8742
 ```
 默认不需要 token；需要在公共 WiFi 防别人乱控时，加 `--token xxx123`。
 
-### ② iPhoneClaw · 独立 iPhone 端侧 AI 助手（iOS 26）
-iPhoneClaw 是一个**完全跑在 iPhone 上**的本地 AI 助手，不依赖 Mac：
-- 用 iOS 26 自带 **Foundation Models** 在本地推理（完全离线 / 隐私 / 不上传任何数据）。
-- 自然语言设**闹钟**：「明早 7 点叫我起床」→ 调用系统本地通知，到点响铃 + 弹窗。
+### ② iPhoneClaw · 独立 iPhone AI 助手
+iPhoneClaw 是一个独立跑在 iPhone 上的 AI 助手，支持**双后端**，任何 iPhone 都能用 AI 设闹钟 / 日历：
+
+**后端 1 · Apple 端侧模型（Foundation Models，iOS 26）**
+- 支持 Apple Intelligence 的机型（iPhone 15 Pro / 16 系列）直接用 iOS 26 自带模型本地推理，完全离线 / 隐私。
+
+**后端 2 · Mac Ollama（局域网 / 云端 AI，兼容所有 iPhone）**
+- 曼德尔单元这类不支持 Apple 端侧模型的设备，开「设置」连 Mac 上已运行的 Ollama 即可用 AI。
+- 模型跑在 Mac（默认 `qwen3.5:9b`），手机不下载权重，只发指令收结果。
+- Mac 端需让 Ollama 监听局域网：`OLLAMA_HOST=0.0.0.0:11434 ollama serve`（本项目已加 `com.kingrsw.ollama-lan.plist` 托管）。
+
+**通用能力**
+- 自然语言设**闹钟**：「明早 7 点叫我起床」→ 系统本地通知，到点响铃 + 弹窗。
 - 自然语言加**日历**：「周五下午 3 点加个会议」→ 直接写进系统日历（EventKit）。
-- 右上「cpu」打开模型页，看当前激活的端侧模型；可下载模型（Qwen 等）规划中。
-- 本机不支持端侧模型时（需 iOS 26 + 支持 Apple Intelligence 的机型），用右上「+」手动添加闹钟 / 日历。
+- 右上「cpu」模型页：看当前后端 + 可下载离线 GGUF 模型（推理引擎接入中，规划路线2）。
+- 本机无可用后端时，用右上「+」手动添加闹钟 / 日历。
 
 > 说明：iOS 第三方 App 不能直接往系统「时钟」建闹钟（无公开 API），iPhoneClaw 用**本地通知**实现等效闹钟（到点响铃 + 弹窗），需 App 已安装。日历则原生写入系统日历。
+> 曼德尔单元实测：Apple 端侧模型 `deviceNotEligible`，走 Mac Ollama 后端正常。
 
 - **最简单安装**：数据线连 Mac，手机点「信任」，然后 `bash ios_app/install_ipa.sh` 一键装（免费 Apple ID 即可，有效期约 7 天，过期重跑），装的是 `ios_app/build/IPhoneClaw.ipa`。
 - 或自己用 Xcode 打开 `ios_app/DesktopAgent.xcodeproj` → 选 Team → Run 到真机。
