@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+    <WebView
+        android:id="@+id/web"
+        android:layout_width="match_parent" android:layout_height="match_parent" />
+    <Button
+        android:id="@+id/change"
+        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:text="改地址"
+        android:textSize="12sp"
+        android:padding="8dp"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="12dp"
+        android:alpha="0.7"
+        android:onClick="onChangeUrl" />
+</FrameLayout>

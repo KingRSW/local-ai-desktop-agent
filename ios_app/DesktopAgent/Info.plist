@@ -5,9 +5,9 @@
     <key>CFBundleName</key>
     <string>DesktopAgent</string>
     <key>CFBundleDisplayName</key>
-    <string>桌面员工</string>
+    <string>iPhoneClaw</string>
     <key>CFBundleIdentifier</key>
-    <string>com.kingrsw.DesktopAgent</string>
+    <string>com.kingrsw.iphoneclaw</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundlePackageType</key>

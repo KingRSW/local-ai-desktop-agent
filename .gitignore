@@ -28,3 +28,8 @@ remote_info.txt
 
 # ---- 演示截图(非必要二进制) ----
 ios_app/demo_screenshot.png
+
+# ---- 移动端构建产物(用脚本重新生成, 不发进 git; 发布走 GitHub Release) ----
+ios_app/build/
+android_app/IPhoneClaw.apk
+android_app/*.apk

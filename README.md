@@ -46,12 +46,19 @@ http://<你的 Mac 局域网IP>:8742
 ```
 默认不需要 token；需要在公共 WiFi 防别人乱控时，加 `--token xxx123`。
 
-### ② iOS 原生 App（SwiftUI）
-用 Xcode 打开 `ios_app/DesktopAgent.xcodeproj`，
-- 选择你的 iPhone / iPad 或任意 iOS Simulator
-- 在 App 的「连接设置」里填 Mac 的 IP 和端口（Simulator 直接连 127.0.0.1）
-- 如果 Mac 端加了 `--token xxx`，App 里对应填 token
-- 真机部署需要 Apple 开发者账号（Xcode 里选 Team）
+### ② iOS 原生 App（iPhoneClaw，SwiftUI）
+App 已改名为 **iPhoneClaw**（bundle id `com.kingrsw.iphoneclaw`）。
+- **最简单安装**：数据线连 Mac，手机点「信任」，然后 `bash ios_app/install_ipa.sh` 一键装（免费 Apple ID 即可，有效期约 7 天，过期重跑）。
+- 或自己用 Xcode 打开 `ios_app/DesktopAgent.xcodeproj` → 选 Team → Run。
+- App 内「连接设置」填 Mac 的地址 + token（Simulator 直接连 127.0.0.1）。
+- 想重新出包：`bash ios_app/build_ipa.sh`（需 Xcode + 已登录 Apple ID）。
+
+### ③ 安卓原生 App（iPhoneClaw，WebView 控制台）
+安卓版是同一个遥控器的极简封装：App 内填 Mac 服务器地址，加载控制台网页（和手机浏览器控制台一模一样）。
+- **出包**：`bash android_app/build_apk.sh`（用本机 Android SDK 命令行工具，无需 Gradle，产出 `android_app/IPhoneClaw.apk`）
+- **安装**：手机开「开发者选项→USB 调试」，连 Mac，`bash android_app/install_apk.sh`
+- 首次打开填 Mac 地址（外网隧道 `https://xxxx.trycloudflare.com` 或局域网 `http://192.168.x.x:8742`），网页内 ⚙️ 填 token。
+- 最低 Android 7.0（API 24），允许 http 局域网明文（已配 network_security_config）。
 
 ### 手机端用法要点
 - 指令要**具体、可拆步**：`打开微信 搜索 张三 发消息 在吗`

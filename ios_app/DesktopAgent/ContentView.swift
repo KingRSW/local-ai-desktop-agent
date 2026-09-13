@@ -24,7 +24,7 @@ struct ContentView: View {
                 logView
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("桌面员工")
+            .navigationTitle("iPhoneClaw")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
