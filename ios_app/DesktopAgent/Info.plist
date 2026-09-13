@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>DesktopAgent</string>
+    <string>iPhoneClaw</string>
     <key>CFBundleDisplayName</key>
     <string>iPhoneClaw</string>
     <key>CFBundleIdentifier</key>
@@ -18,6 +18,10 @@
     <string>1</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
+    <key>NSCalendarsFullAccessUsageDescription</key>
+    <string>iPhoneClaw 需要访问日历来帮你创建日程和提醒。</string>
+    <key>NSUserNotificationsUsageDescription</key>
+    <string>iPhoneClaw 需要发送通知来在设定时间提醒你。</string>
     <key>UIApplicationSupportsIndirectInputEvents</key>
     <true/>
     <key>UILaunchScreen</key>

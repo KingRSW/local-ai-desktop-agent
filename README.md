@@ -16,7 +16,7 @@
 - `agent/server.py`：Mac 端遥控服务（HTTP + 手机浏览器控制台）。
 - `agent/console.html`：手机浏览器响应式控制台。
 - `agent/ocr.swift` + `agent/ocr`：macOS 系统 Vision OCR（认字定位，离线免费）。
-- `ios_app/DesktopAgent.xcodeproj`：SwiftUI iOS 原生遥控器 App。
+- `ios_app/DesktopAgent.xcodeproj`：SwiftUI iOS 独立端侧 AI 助手 App（iPhoneClaw，iOS 26 Foundation Models，可设闹钟 / 日历）。
 - `build_dmg.sh`：一键打包成 `.app` 与 `.dmg`（启动器式 .app，直接调用本机 venv Python，绕开 Python 解释器 dylib 签名坑）。
 - `index.html`：获客落地页（可直接双击打开 / 部署）。
 
@@ -46,12 +46,19 @@ http://<你的 Mac 局域网IP>:8742
 ```
 默认不需要 token；需要在公共 WiFi 防别人乱控时，加 `--token xxx123`。
 
-### ② iOS 原生 App（iPhoneClaw，SwiftUI）
-App 已改名为 **iPhoneClaw**（bundle id `com.kingrsw.iphoneclaw`）。
-- **最简单安装**：数据线连 Mac，手机点「信任」，然后 `bash ios_app/install_ipa.sh` 一键装（免费 Apple ID 即可，有效期约 7 天，过期重跑）。
-- 或自己用 Xcode 打开 `ios_app/DesktopAgent.xcodeproj` → 选 Team → Run。
-- App 内「连接设置」填 Mac 的地址 + token（Simulator 直接连 127.0.0.1）。
-- 想重新出包：`bash ios_app/build_ipa.sh`（需 Xcode + 已登录 Apple ID）。
+### ② iPhoneClaw · 独立 iPhone 端侧 AI 助手（iOS 26）
+iPhoneClaw 是一个**完全跑在 iPhone 上**的本地 AI 助手，不依赖 Mac：
+- 用 iOS 26 自带 **Foundation Models** 在本地推理（完全离线 / 隐私 / 不上传任何数据）。
+- 自然语言设**闹钟**：「明早 7 点叫我起床」→ 调用系统本地通知，到点响铃 + 弹窗。
+- 自然语言加**日历**：「周五下午 3 点加个会议」→ 直接写进系统日历（EventKit）。
+- 右上「cpu」打开模型页，看当前激活的端侧模型；可下载模型（Qwen 等）规划中。
+- 本机不支持端侧模型时（需 iOS 26 + 支持 Apple Intelligence 的机型），用右上「+」手动添加闹钟 / 日历。
+
+> 说明：iOS 第三方 App 不能直接往系统「时钟」建闹钟（无公开 API），iPhoneClaw 用**本地通知**实现等效闹钟（到点响铃 + 弹窗），需 App 已安装。日历则原生写入系统日历。
+
+- **最简单安装**：数据线连 Mac，手机点「信任」，然后 `bash ios_app/install_ipa.sh` 一键装（免费 Apple ID 即可，有效期约 7 天，过期重跑），装的是 `ios_app/build/IPhoneClaw.ipa`。
+- 或自己用 Xcode 打开 `ios_app/DesktopAgent.xcodeproj` → 选 Team → Run 到真机。
+- 想重新出包：`bash ios_app/build_ipa.sh`（需 Xcode + 已登录 Apple ID + 一台已连真机）。
 
 ### ③ 安卓原生 App（iPhoneClaw，WebView 控制台）
 安卓版是同一个遥控器的极简封装：App 内填 Mac 服务器地址，加载控制台网页（和手机浏览器控制台一模一样）。
