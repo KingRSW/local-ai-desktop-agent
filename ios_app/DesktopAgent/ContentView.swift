@@ -241,11 +241,77 @@ struct SettingsView: View {
     }
 }
 
+// MARK: - 模型下载管理（国内镜像 + 进度 + 错误提示）
+@MainActor
+final class ModelStore: ObservableObject {
+    @Published var downloading = Set<String>()
+    @Published var done = Set<String>()
+    @Published var progress: [String: Double] = [:]
+    @Published var errors: [String: String] = [:]
+    private var sessions: [String: URLSession] = [:]
+    private var delegates: [String: DLDelegate] = [:]
+
+    func download(_ m: LocalModel) {
+        guard let url = URL(string: m.url), !downloading.contains(m.id) else { return }
+        downloading.insert(m.id); errors[m.id] = nil; progress[m.id] = 0
+        let finish: (URL?, Error?) -> Void = { [weak self] tmp, err in
+            guard let self else { return }
+            Task { @MainActor in
+                self.downloading.remove(m.id)
+                self.sessions[m.id]?.finishTasksAndInvalidate()
+                self.sessions[m.id] = nil; self.delegates[m.id] = nil
+                if let err { self.errors[m.id] = "下载失败：\(err.localizedDescription)"; return }
+                guard let tmp else { self.errors[m.id] = "未获取到文件"; return }
+                let dest = LocalModel.dir.appendingPathComponent(m.file)
+                do {
+                    try? FileManager.default.removeItem(at: dest)
+                    try FileManager.default.moveItem(at: tmp, to: dest)
+                    let sz = (try? FileManager.default.attributesOfItem(atPath: dest.path)[.size] as? Int) ?? 0
+                    if sz < 1024 * 1024 {
+                        try? FileManager.default.removeItem(at: dest)
+                        self.errors[m.id] = "文件过小（\(sz)B），可能下到了错误页。请检查网络后重试。"
+                    } else {
+                        self.done.insert(m.id); self.progress[m.id] = 1
+                    }
+                } catch {
+                    self.errors[m.id] = error.localizedDescription
+                }
+            }
+        }
+        let del = DLDelegate(onProgress: { [weak self] got, total in
+            Task { @MainActor in
+                if total > 0 { self?.progress[m.id] = Double(got) / Double(total) }
+            }
+        }, onFinish: finish)
+        delegates[m.id] = del
+        let session = URLSession(configuration: .default, delegate: del, delegateQueue: .main)
+        sessions[m.id] = session
+        session.downloadTask(with: url).resume()
+    }
+}
+
+final class DLDelegate: NSObject, URLSessionDownloadDelegate {
+    let onProgress: (Int64, Int64) -> Void
+    let onFinish: (URL?, Error?) -> Void
+    init(onProgress: @escaping (Int64, Int64) -> Void, onFinish: @escaping (URL?, Error?) -> Void) {
+        self.onProgress = onProgress; self.onFinish = onFinish
+    }
+    func urlSession(_ s: URLSession, downloadTask t: URLSessionDownloadTask,
+                    didWriteData b: Int64, totalBytesWritten w: Int64, totalBytesExpectedToWrite e: Int64) {
+        onProgress(w, e)
+    }
+    func urlSession(_ s: URLSession, downloadTask t: URLSessionDownloadTask, didFinishDownloadingTo loc: URL) {
+        onFinish(loc, nil)
+    }
+    func urlSession(_ s: URLSession, task: URLSessionTask, didCompleteWithError err: Error?) {
+        if let err { onFinish(nil, err) }
+    }
+}
+
 // MARK: - 模型页（Ollama + 可下载 GGUF）
 struct ModelsView: View {
     @Environment(\.dismiss) var dismiss
-    @State private var downloading = Set<String>()
-    @State private var done = Set<String>()
+    @StateObject private var store = ModelStore()
 
     var body: some View {
         NavigationStack {
@@ -260,21 +326,33 @@ struct ModelsView: View {
                     Text("在「设置」里填 Mac 地址即可。模型跑在 Mac，手机不下载权重，任何 iPhone 都能用。").font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("可下载模型（本地离线 · 推理引擎接入中）") {
+                    Text("下载源：hf-mirror.com（国内可直连）。模型仅下载到本机，离线推理引擎后续接入后可用。注：Gemma 等在 HuggingFace 属需登录的门控模型，无法在 App 内匿名下载，故未列入。").font(.footnote).foregroundStyle(.secondary)
                     ForEach(LocalModel.catalog) { m in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(m.name).font(.headline)
-                                Text(m.desc).font(.caption).foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(m.name).font(.headline)
+                                    Text(m.desc).font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                if store.done.contains(m.id) {
+                                    Label("已下载", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                                } else if store.downloading.contains(m.id) {
+                                    Button { } label: { ProgressView(value: store.progress[m.id] ?? 0) }
+                                        .frame(width: 70)
+                                } else {
+                                    Button("下载") { store.download(m) }.buttonStyle(.bordered)
+                                }
                             }
-                            Spacer()
-                            if done.contains(m.id) {
-                                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                            } else if downloading.contains(m.id) {
-                                ProgressView()
-                            } else {
-                                Button("下载") { download(m) }.buttonStyle(.bordered)
+                            if let err = store.errors[m.id], !store.done.contains(m.id) {
+                                Text(err).font(.caption2).foregroundStyle(.red)
+                            }
+                            if store.downloading.contains(m.id), let p = store.progress[m.id], p > 0 {
+                                ProgressView(value: p)
+                                Text("\(Int(p * 100))%").font(.caption2).foregroundStyle(.secondary)
                             }
                         }
+                        .padding(.vertical, 2)
                     }
                 }
             }
@@ -286,23 +364,6 @@ struct ModelsView: View {
             }
         }
     }
-
-    func download(_ m: LocalModel) {
-        downloading.insert(m.id)
-        Task {
-            do {
-                let url = URL(string: m.url)!
-                let (tmp, _) = try await URLSession.shared.download(from: url)
-                let dest = LocalModel.dir.appendingPathComponent(m.file)
-                try? FileManager.default.removeItem(at: dest)
-                try FileManager.default.moveItem(at: tmp, to: dest)
-                done.insert(m.id)
-            } catch {
-                // 下载失败静默（可重试）
-            }
-            downloading.remove(m.id)
-        }
-    }
 }
 
 struct LocalModel: Identifiable {
@@ -312,12 +373,20 @@ struct LocalModel: Identifiable {
         try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
         return d
     }()
+    // 走 hf-mirror.com 国内镜像（huggingface.co 在国内常被墙，直连会超时）
+    static let mirror = "https://hf-mirror.com"
     static let catalog = [
-        LocalModel(id: "qwen2.5-3b", name: "Qwen2.5-3B-Instruct (GGUF Q4)", desc: "约2GB，本地离线推理（引擎接入中）",
-                   url: "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf",
+        LocalModel(id: "qwen2.5-0.5b", name: "Qwen2.5-0.5B-Instruct (GGUF Q4)", desc: "约0.5GB，最轻量、最快（引擎接入中）",
+                   url: "\(mirror)/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf",
+                   file: "qwen2.5-0.5b-q4.gguf"),
+        LocalModel(id: "qwen2.5-1.5b", name: "Qwen2.5-1.5B-Instruct (GGUF Q4)", desc: "约1.1GB，轻快（引擎接入中）",
+                   url: "\(mirror)/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
+                   file: "qwen2.5-1.5b-q4.gguf"),
+        LocalModel(id: "qwen2.5-3b", name: "Qwen2.5-3B-Instruct (GGUF Q4)", desc: "约2.0GB，效果更稳（引擎接入中）",
+                   url: "\(mirror)/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf",
                    file: "qwen2.5-3b-q4.gguf"),
-        LocalModel(id: "qwen2.5-1.5b", name: "Qwen2.5-1.5B-Instruct (GGUF Q4)", desc: "约1GB，更快（引擎接入中）",
-                   url: "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
-                   file: "qwen2.5-1.5b-q4.gguf")
+        LocalModel(id: "llama3.2-3b", name: "Llama-3.2-3B-Instruct (GGUF Q4)", desc: "约2.0GB，Meta 系（引擎接入中）",
+                   url: "\(mirror)/unsloth/Llama-3.2-3B-Instruct-GGUF/resolve/main/Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+                   file: "llama-3.2-3b-q4.gguf")
     ]
 }
