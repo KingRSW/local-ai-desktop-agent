@@ -264,6 +264,7 @@ final class ModelStore: ObservableObject {
                 guard let tmp else { self.errors[m.id] = "未获取到文件"; return }
                 let dest = LocalModel.dir.appendingPathComponent(m.file)
                 do {
+                    try FileManager.default.createDirectory(at: LocalModel.dir, withIntermediateDirectories: true, attributes: nil)
                     try? FileManager.default.removeItem(at: dest)
                     try FileManager.default.moveItem(at: tmp, to: dest)
                     let sz = (try? FileManager.default.attributesOfItem(atPath: dest.path)[.size] as? Int) ?? 0
