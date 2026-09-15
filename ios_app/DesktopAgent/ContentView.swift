@@ -347,6 +347,8 @@ struct ModelsView: View {
                             }
                             if let err = store.errors[m.id], !store.done.contains(m.id) {
                                 Text(err).font(.caption2).foregroundStyle(.red)
+                                Button("重试") { store.download(m) }
+                                    .buttonStyle(.bordered).font(.caption2)
                             }
                             if store.downloading.contains(m.id), let p = store.progress[m.id], p > 0 {
                                 ProgressView(value: p)

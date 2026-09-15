@@ -351,6 +351,37 @@ final class Assistant: ObservableObject {
         }
     }
 
+    // MARK: - Ollama 一键诊断（连接与稳定优化）
+    func diagnoseOllama() async -> String {
+        var base = ClawSettings.shared.baseURL.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: ["/"])
+        var out = [String]()
+        out.append("当前后端：\(backend.rawValue)")
+        guard let url = URL(string: base + "/api/tags") else { return "❌ 地址格式无效：\(base)" }
+        let t0 = Date()
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            let ms = Int(Date().timeIntervalSince(t0) * 1000)
+            out.append("✅ 网络连通（\(ms)ms）")
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let models = json["models"] as? [[String: Any]] {
+                let names = models.compactMap { $0["name"] as? String }
+                out.append("Mac 上模型：\(names.joined(separator: ", "))")
+                if names.contains(ClawSettings.shared.modelName) {
+                    out.append("✅ 当前模型「\(ClawSettings.shared.modelName)」可用")
+                } else {
+                    out.append("⚠️ 模型「\(ClawSettings.shared.modelName)」不在列表，去设置改对")
+                }
+            }
+        } catch {
+            out.append("❌ 无法连通：\(error.localizedDescription)")
+            out.append("排查：Mac Ollama 是否运行 · 是否监听 0.0.0.0:11434 · 手机与 Mac 是否同一局域网")
+        }
+        if backend == .none {
+            out.append("提示：本机不支持 Apple 端侧模型，连接 Mac Ollama 后即可 AI 对话；闹钟/日历可完全离线。")
+        }
+        return out.joined(separator: "\n")
+    }
+
     // MARK: Ollama 工具 schema
     private var alarmSchema: [String: Any] {
         ["type": "function", "function": [

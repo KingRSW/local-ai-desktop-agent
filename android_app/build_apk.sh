@@ -25,7 +25,7 @@ echo "🔨 链接资源 + 生成 R.java..."
 # 3) 编译 Java（含 R.java）
 echo "🔨 编译 Java..."
 javac --release 17 -cp "$PLAT/android.jar" -d "$OBJ" \
-  "$PKG_DIR/MainActivity.java" \
+  $(find "$PKG_DIR" -name "*.java") \
   "$GEN/com/kingrsw/iphoneclaw/R.java"
 
 # 4) 转 DEX

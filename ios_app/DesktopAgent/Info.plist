@@ -25,7 +25,12 @@
     <key>UIApplicationSupportsIndirectInputEvents</key>
     <true/>
     <key>UILaunchScreen</key>
-    <dict/>
+    <dict>
+        <key>BackgroundColor</key>
+        <string>systemGroupedBackgroundColor</string>
+        <key>Title</key>
+        <string>iPhoneClaw</string>
+    </dict>
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>
