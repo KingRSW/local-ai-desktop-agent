@@ -302,7 +302,17 @@ final class DLDelegate: NSObject, URLSessionDownloadDelegate {
         onProgress(w, e)
     }
     func urlSession(_ s: URLSession, downloadTask t: URLSessionDownloadTask, didFinishDownloadingTo loc: URL) {
-        onFinish(loc, nil)
+        // 关键：URLSession 会在本方法返回后立即删除 loc（CFNetworkDownload_xxx.tmp），
+        // 必须在返回前同步把文件复制到自己的暂存路径，否则异步处理时文件已被删。
+        let staging = FileManager.default.temporaryDirectory
+            .appendingPathComponent("claw-\(UUID().uuidString).part")
+        do {
+            try? FileManager.default.removeItem(at: staging)
+            try FileManager.default.copyItem(at: loc, to: staging)
+            onFinish(staging, nil)
+        } catch {
+            onFinish(nil, error)
+        }
     }
     func urlSession(_ s: URLSession, task: URLSessionTask, didCompleteWithError err: Error?) {
         if let err { onFinish(nil, err) }
